@@ -1,10 +1,10 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling>=1.32.4"]
 build-backend = "hatchling.build"
 
 [project]
 name = "kokoro-mlx"
-version = "0.1.2"
+version = "0.1.3"
 description = "Kokoro TTS inference on Apple Silicon via MLX"
 readme = "README.md"
 license = "MIT"
@@ -26,11 +26,10 @@ classifiers = [
     "Topic :: Multimedia :: Sound/Audio :: Speech",
 ]
 dependencies = [
-    "mlx>=0.31.1",
+    "mlx>=0.32.4",
     "numpy>=1.26.4",
     "huggingface-hub>=1.0.0",
-    "soundfile>=0.13.1",
-    "safetensors>=0.7.0",
+    "soundfile>=0.14.0",
     "misaki[en]>=0.9.4",
 ]
 
@@ -41,11 +40,11 @@ Repository = "https://github.com/gabrimatic/kokoro-mlx"
 Changelog = "https://github.com/gabrimatic/kokoro-mlx/releases"
 
 [project.optional-dependencies]
-audio = ["sounddevice>=0.4.0"]
+audio = ["sounddevice>=0.5.6"]
 ja = ["misaki[ja]>=0.9.4"]
 zh = ["misaki[zh]>=0.9.4"]
 multilingual = ["misaki[ja,zh]>=0.9.4"]
-dev = ["pytest"]
+dev = ["pytest>=9.1.1", "ruff>=0.17.0"]
 
 [tool.ruff]
 target-version = "py310"
