@@ -1,7 +1,7 @@
 # kokoro-mlx
 
 [![PyPI](https://img.shields.io/pypi/v/kokoro-mlx.svg)](https://pypi.org/project/kokoro-mlx/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://github.com/gabrimatic/kokoro-mlx/blob/main/LICENSE)
 [![Platform: macOS](https://img.shields.io/badge/platform-macOS-lightgrey.svg)]()
 [![Apple Silicon](https://img.shields.io/badge/Apple_Silicon-required-blue.svg)]()
 [![Python 3.10–3.12](https://img.shields.io/badge/Python-3.10--3.12-blue.svg)]()
@@ -16,11 +16,13 @@ An MLX implementation of the [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-
 
 ## Quick Start
 
-**Apple Silicon required.** Python 3.10–3.12, MLX 0.32+.
+**Apple Silicon required.** Python 3.10–3.12, MLX 0.32.4+.
 
 ```bash
-pip install kokoro-mlx
+pip install "kokoro-mlx[audio]"
 ```
+
+The `audio` extra installs `sounddevice` for `speak()`. Use plain `pip install kokoro-mlx` if you only need `generate()` and `save()`.
 
 ```python
 from kokoro_mlx import KokoroTTS
@@ -38,7 +40,7 @@ Model weights download automatically from HuggingFace Hub on first use.
 - **On-device** via MLX. No server, no network during inference.
 - **No PyTorch or transformers** dependency.
 - **48 kHz output** from native 24 kHz via FFT upsampling.
-- **Mixed-precision vocoder**: bf16 through the network, float32 for waveform reconstruction.
+- **float32 inference**: bfloat16 and float16 checkpoints are upcast on load, so reduced-precision weights cannot produce NaN or silent audio.
 - **Gapless streaming** over a single persistent audio stream.
 - **54 voices** across American English, British English, and additional languages.
 - **Language-aware G2P** inferred from the voice prefix, with explicit language override.
@@ -234,9 +236,9 @@ Inference runs in float32 end to end. Checkpoints and voices stored in bfloat16 
 ## Requirements
 
 - Apple Silicon Mac (M1 or later)
-- macOS 13+
+- macOS 14+ (MLX ships no macOS 13 wheels)
 - Python 3.10–3.12
-- MLX 0.32+
+- MLX 0.32.4+
 
 ---
 
@@ -291,7 +293,7 @@ This project depends on:
 
 ## License
 
-This inference code is released under the MIT License. See [LICENSE](LICENSE) for details.
+This inference code is released under the MIT License. See [LICENSE](https://github.com/gabrimatic/kokoro-mlx/blob/main/LICENSE) for details.
 
 The model weights have their own license (Apache 2.0). See [Model License](#legal-notices) above.
 

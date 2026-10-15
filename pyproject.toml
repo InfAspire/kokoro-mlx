@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "kokoro-mlx"
-version = "0.1.3"
+version = "0.1.4"
 description = "Kokoro TTS inference on Apple Silicon via MLX"
 readme = "README.md"
 license = "MIT"
@@ -17,7 +17,6 @@ classifiers = [
     "Development Status :: 3 - Alpha",
     "Environment :: MacOS X",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
     "Operating System :: MacOS",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
@@ -56,6 +55,9 @@ ignore = ["E501"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/kokoro_mlx"]
+
+[tool.hatch.build.targets.sdist]
+exclude = [".github"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

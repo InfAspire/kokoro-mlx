@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.1.4] - 2026-10-15
+
+### Fixed
+
+- README Quick Start installs the `audio` extra, which `speak()` needs; the plain install raised `ImportError` on the first call.
+- README no longer claims the network runs in bfloat16; inference is float32.
+- The playback `ImportError` now suggests `pip install "kokoro-mlx[audio]"`.
+- README license links resolve on PyPI.
+- README requirements say macOS 14+; MLX publishes no macOS 13 wheels.
+
+### Changed
+
+- The publish workflow runs the full CI suite on the release commit and publishes only if it passes.
+- The sdist no longer ships the `.github` directory.
+- Drop the license classifier, which duplicates the `MIT` license expression.
+
 ## [0.1.3] - 2026-10-15
 
 ### Fixed
@@ -11,7 +27,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Compute instance and layer normalization statistics in float32. In float16, `x**2` overflowed for typical decoder activations and produced NaN audio; in bfloat16 the variance lost all precision (#2).
 - Accumulate the harmonic source phase in float32 regardless of the input dtype.
 - Load weights and voices with `mx.load` and upcast bfloat16/float16 tensors to float32. `safetensors.numpy` could not read bfloat16 checkpoints at all.
-- Match the reference vocoder: reflect-pad the harmonic source before the STFT (as `torch.stft(center=True)` does) and use reflection padding before the last generator stage instead of zero padding.
+- Match the reference vocoder: reflect-pad the harmonic source before the STFT (as `torch.stft(center=True)` does) and use reflection padding before the last generator stage instead of zero padding. Default output audio changes slightly as a result.
 - `ProsodyPredictor.__call__` no longer runs the duration LSTM twice or fails on the `squeeze` of the duration logits.
 
 ### Changed

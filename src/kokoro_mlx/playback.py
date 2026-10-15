@@ -26,7 +26,7 @@ def play(audio: np.ndarray, sample_rate: int = SAMPLE_RATE) -> None:
         import sounddevice as sd
     except ImportError as exc:
         raise ImportError(
-            "sounddevice is required for playback. Install it with: pip install sounddevice"
+            "sounddevice is required for playback. Install it with: pip install \"kokoro-mlx[audio]\""
         ) from exc
 
     sd.play(audio, samplerate=sample_rate)
@@ -53,7 +53,7 @@ def play_stream(
         import sounddevice as sd
     except ImportError as exc:
         raise ImportError(
-            "sounddevice is required for playback. Install it with: pip install sounddevice"
+            "sounddevice is required for playback. Install it with: pip install \"kokoro-mlx[audio]\""
         ) from exc
 
     audio_q: queue.Queue[np.ndarray | None] = queue.Queue()

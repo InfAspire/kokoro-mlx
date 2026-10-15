@@ -3,7 +3,7 @@
 
 """kokoro-mlx: Kokoro TTS inference on Apple Silicon via MLX."""
 
-__version__ = "0.1.3"
+__version__ = "0.1.4"
 
 from .config import ISTFTNetConfig, KokoroConfig, PLBertConfig
 from .kokoro import KokoroTTS, TTSResult
