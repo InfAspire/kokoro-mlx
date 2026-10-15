@@ -130,7 +130,9 @@ def test_generator_half_precision_inputs_produce_finite_audio(dtype):
         gen_istft_hop_size=5,
     )
     frames = 6
-    x = _large_activations((1, 16, frames), dtype)
+    # Unit-scale features: with random weights, large inputs would overflow the
+    # spectrogram exp() in any precision, which is not what this test guards.
+    x = mx.random.normal((1, 16, frames)).astype(dtype)
     s = mx.random.normal((1, 8)).astype(dtype)
     f0 = mx.full((1, frames), 180.0).astype(dtype)
     audio = gen(x, s, f0)
