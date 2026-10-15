@@ -16,7 +16,7 @@ An MLX implementation of the [Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-
 
 ## Quick Start
 
-**Apple Silicon required.** Python 3.10–3.12, MLX 0.31+.
+**Apple Silicon required.** Python 3.10–3.12, MLX 0.32+.
 
 ```bash
 pip install kokoro-mlx
@@ -215,10 +215,10 @@ ProsodyPredictor (duration + pitch)
   ├── Voice Style Vector (per-voice, 256-dim)
   │
   ▼
-Decoder (StyleTTS2-style, AdaIN + residual blocks) [bf16]
+Decoder (StyleTTS2-style, AdaIN + residual blocks)
   │
   ▼
-ISTFTNet Vocoder (80-bin mel → waveform) [float32]
+iSTFTNet Vocoder (harmonic source + inverse STFT → 24 kHz waveform)
   │
   ▼
 Optional 2x FFT upsample (24 kHz → 48 kHz)
@@ -227,7 +227,7 @@ Optional 2x FFT upsample (24 kHz → 48 kHz)
 TTSResult { audio float32, duration, voice }
 ```
 
-The network runs in bf16 for throughput. At the vocoder output, the signal is promoted to float32 for waveform reconstruction: magnitude recovery, phase extraction, inverse DFT, and overlap-add synthesis. This keeps inference fast while preserving the precision the iSTFT path needs.
+Inference runs in float32 end to end. Checkpoints and voices stored in bfloat16 or float16 are upcast on load, and the numerically sensitive steps (instance and layer normalization statistics, the harmonic source phase, and the inverse STFT) always compute in float32, so reduced-precision weights cannot turn the output into NaN or silence.
 
 ---
 
@@ -236,7 +236,7 @@ The network runs in bf16 for throughput. At the vocoder output, the signal is pr
 - Apple Silicon Mac (M1 or later)
 - macOS 13+
 - Python 3.10–3.12
-- MLX 0.31+
+- MLX 0.32+
 
 ---
 
@@ -248,6 +248,7 @@ cd kokoro-mlx
 python3 -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
 python -m pytest tests/ -v
+ruff check src/ tests/
 ```
 
 Skip model-loading tests with `-m "not slow"`.

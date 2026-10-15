@@ -4,6 +4,24 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.1.3] - 2026-10-15
+
+### Fixed
+
+- Compute instance and layer normalization statistics in float32. In float16, `x**2` overflowed for typical decoder activations and produced NaN audio; in bfloat16 the variance lost all precision (#2).
+- Accumulate the harmonic source phase in float32 regardless of the input dtype.
+- Load weights and voices with `mx.load` and upcast bfloat16/float16 tensors to float32. `safetensors.numpy` could not read bfloat16 checkpoints at all.
+- Match the reference vocoder: reflect-pad the harmonic source before the STFT (as `torch.stft(center=True)` does) and use reflection padding before the last generator stage instead of zero padding.
+- `ProsodyPredictor.__call__` no longer runs the duration LSTM twice or fails on the `squeeze` of the duration logits.
+
+### Changed
+
+- Require MLX 0.32.4+ and soundfile 0.14+; `sounddevice` extra requires 0.5.6+.
+- Drop the unused `safetensors` runtime dependency.
+- `dev` extra now includes ruff.
+- Regression tests for reduced-precision numerics that run without the model weights.
+- README now describes the real float32 inference path.
+
 ## [0.1.2] - 2026-05-12
 
 ### Changed
@@ -13,6 +31,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Infer G2P language from Kokoro voice prefixes, with an explicit `language` override on `generate`, `generate_stream`, `speak`, and `save`.
 - Add optional Japanese and Mandarin G2P extras: `kokoro-mlx[ja]`, `kokoro-mlx[zh]`, and `kokoro-mlx[multilingual]`.
 - Update README API and language selection docs.
+
+## [0.1.1] - 2026-03-12
+
+### Changed
+
+- Widen the Python constraint to 3.10+.
 
 ## [0.1.0] - 2026-02-28
 
