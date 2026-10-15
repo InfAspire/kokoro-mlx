@@ -35,10 +35,8 @@ class VoiceManager:
         if not path.exists():
             raise FileNotFoundError(f"Voice file not found: {path}")
 
-        from safetensors.numpy import load_file
-
-        data = load_file(str(path))
-        arr = mx.array(data["voice"])
+        data = mx.load(str(path), format="safetensors")
+        arr = data["voice"].astype(mx.float32)
         self._cache[name] = arr
         return arr
 

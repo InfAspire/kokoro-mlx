@@ -21,10 +21,14 @@ from .modules import ALBERT, BiLSTM, ProsodyPredictor, TextEncoder
 
 
 def _load_safetensors(path: str | Path) -> dict[str, mx.array]:
-    """Load a safetensors file and return {key: mx.array}."""
-    from safetensors.numpy import load_file
-    raw = load_file(str(path))
-    return {k: mx.array(v) for k, v in raw.items()}
+    """Load a safetensors file and return {key: mx.array} with floating tensors in float32.
+
+    Reduced-precision checkpoints (bfloat16 / float16) are upcast: the vocoder's
+    normalization, phase accumulation and ``exp`` magnitude path need float32,
+    and running them in half precision yields NaN or silent audio.
+    """
+    raw = mx.load(str(path), format="safetensors")
+    return {k: v.astype(mx.float32) if mx.issubdtype(v.dtype, mx.floating) else v for k, v in raw.items()}
 
 
 def _set_nested(obj, key_parts: list[str], value: mx.array) -> None:
@@ -482,7 +486,7 @@ class KokoroModel(nn.Module):
 
         # Evaluate pred_dur to numpy for building alignment matrix
         mx.eval(pred_dur)
-        pred_dur_np = np.array(pred_dur.tolist())
+        pred_dur_np = np.array(pred_dur)
         total_frames = int(pred_dur_np.sum())
 
         # --- Alignment matrix ---

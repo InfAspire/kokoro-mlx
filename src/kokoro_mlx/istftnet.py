@@ -11,7 +11,7 @@ import mlx.core as mx
 import mlx.nn as nn
 import numpy as np
 
-from .modules import WeightNormConv1d, WeightNormConvTranspose1d, get_padding
+from .modules import WeightNormConv1d, WeightNormConvTranspose1d, get_padding, normalize
 
 # ---------------------------------------------------------------------------
 # InstanceNorm1d (not built-in in MLX)
@@ -19,11 +19,26 @@ from .modules import WeightNormConv1d, WeightNormConvTranspose1d, get_padding
 
 
 def instance_norm1d(x: mx.array, eps: float = 1e-5) -> mx.array:
-    """Manual InstanceNorm1d for NCL tensors. Normalizes over the time (L) dimension."""
+    """Manual InstanceNorm1d for NCL tensors. Normalizes over the time (L) dimension.
+
+    Statistics are computed in float32 regardless of the input dtype (see ``normalize``).
+    """
     # x: (B, C, L)
-    mean = mx.mean(x, axis=-1, keepdims=True)
-    var = mx.var(x, axis=-1, keepdims=True)
-    return (x - mean) / mx.sqrt(var + eps)
+    return normalize(x, axis=-1, eps=eps)
+
+
+def _reflect_pad_1d(x: mx.array, left: int, right: int) -> mx.array:
+    """Reflection padding along the last axis (PyTorch ``mode="reflect"`` semantics)."""
+    L = x.shape[-1]
+    if left >= L or right >= L:
+        raise ValueError(f"Reflection padding ({left}, {right}) must be smaller than the input length {L}")
+    parts = []
+    if left > 0:
+        parts.append(x[..., mx.arange(left, 0, -1)])
+    parts.append(x)
+    if right > 0:
+        parts.append(x[..., mx.arange(L - 2, L - 2 - right, -1)])
+    return mx.concatenate(parts, axis=-1) if len(parts) > 1 else x
 
 
 # ---------------------------------------------------------------------------
@@ -222,6 +237,9 @@ class SineGen(nn.Module):
 
     def __call__(self, f0: mx.array):
         """f0: (batch, length, 1) → sine_waves (batch, length, dim), uv, noise"""
+        # The phase is a cumulative sum over tens of thousands of samples; it must
+        # be accumulated in float32 or reduced-precision inputs collapse it.
+        f0 = f0.astype(mx.float32)
         # Expand to harmonics: multiply by [1, 2, ..., harmonic_num+1]
         harmonics = mx.array(list(range(1, self.harmonic_num + 2)), dtype=mx.float32)[None, None, :]  # (1, 1, dim)
         fn = f0 * harmonics  # (B, L, dim)
@@ -311,10 +329,13 @@ class iSTFT(nn.Module):
         self._sin_mat_T = mx.array(sin_mat_T[None])
 
     def transform(self, x: mx.array):
-        """x: (batch, time) → magnitude (batch, n_bins, frames), phase (batch, n_bins, frames)"""
+        """x: (batch, time) → magnitude (batch, n_bins, frames), phase (batch, n_bins, frames)
+
+        Matches ``torch.stft(center=True)``, which reflect-pads the signal by n_fft // 2.
+        """
         n_fft = self.n_fft
         pad = n_fft // 2
-        x_padded = mx.pad(x, [(0, 0), (pad, pad)])
+        x_padded = _reflect_pad_1d(x.astype(mx.float32), pad, pad)
         x_nlc = x_padded[:, :, None]
         out = mx.conv1d(x_nlc, self.forward_basis, stride=self.hop_length, padding=0)
         out = out.transpose(0, 2, 1)  # (B, 2*n_bins, frames)
@@ -478,8 +499,8 @@ class Generator(nn.Module):
 
             x = self.ups[i](x)
             if i == self.num_upsamples - 1:
-                # Reflection pad (1, 0) — pad 1 on left
-                x = mx.pad(x, [(0, 0), (0, 0), (1, 0)])
+                # nn.ReflectionPad1d((1, 0)): mirror one sample onto the left edge
+                x = _reflect_pad_1d(x, 1, 0)
 
             # Trim x_source to match x's time dim if needed
             if x_source.shape[-1] != x.shape[-1]:

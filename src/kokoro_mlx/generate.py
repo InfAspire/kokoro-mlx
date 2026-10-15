@@ -68,7 +68,7 @@ def generate(
     for phonemes, token_ids in chunks:
         style = voice_manager.get_style(voice_array, len(token_ids))
         audio = model.forward(phonemes, style, speed)
-        audio_chunks.append(np.array(audio.tolist(), dtype=np.float32))
+        audio_chunks.append(np.array(audio, dtype=np.float32))
 
     result = np.concatenate(audio_chunks) if audio_chunks else np.array([], dtype=np.float32)
 
@@ -119,7 +119,7 @@ def generate_stream(
     for phonemes, token_ids in chunks:
         style = voice_manager.get_style(voice_array, len(token_ids))
         audio = model.forward(phonemes, style, speed)
-        chunk = np.array(audio.tolist(), dtype=np.float32)
+        chunk = np.array(audio, dtype=np.float32)
         if upsample and len(chunk) > 0:
             chunk = _resample_2x(chunk)
         yield chunk

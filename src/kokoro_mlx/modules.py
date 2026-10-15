@@ -20,6 +20,22 @@ def get_padding(kernel_size: int, dilation: int = 1) -> int:
     return int((kernel_size * dilation - dilation) / 2)
 
 
+def normalize(x: mx.array, axis: int = -1, eps: float = 1e-5) -> mx.array:
+    """Zero-mean, unit-variance normalization along *axis*, computed in float32.
+
+    Activations in the decoder routinely reach magnitudes where ``x**2``
+    overflows float16 and loses all precision in bfloat16, which turns the
+    variance into ``inf``/garbage and the output into NaN or silence. The
+    statistics are therefore always computed in float32 and the result is
+    cast back to the input dtype.
+    """
+    dtype = x.dtype
+    x32 = x.astype(mx.float32)
+    mean = mx.mean(x32, axis=axis, keepdims=True)
+    var = mx.var(x32, axis=axis, keepdims=True)
+    return ((x32 - mean) / mx.sqrt(var + eps)).astype(dtype)
+
+
 # ---------------------------------------------------------------------------
 # WeightNormConv1d
 # ---------------------------------------------------------------------------
@@ -180,9 +196,7 @@ class LayerNorm(nn.Module):
     def __call__(self, x: mx.array) -> mx.array:
         # x: NCL → transpose to NLC → layer norm → transpose back
         x = x.transpose(0, 2, 1)  # NLC
-        mean = mx.mean(x, axis=-1, keepdims=True)
-        var = mx.var(x, axis=-1, keepdims=True)
-        x = (x - mean) / mx.sqrt(var + self.eps)
+        x = normalize(x, axis=-1, eps=self.eps)
         x = self.gamma * x + self.beta
         return x.transpose(0, 2, 1)  # NCL
 
@@ -253,9 +267,7 @@ class AdaLayerNorm(nn.Module):
         h = self.fc(s)  # (batch, 2*channels)
         h = h[:, None, :]  # (batch, 1, 2*channels)
         gamma, beta = mx.split(h, 2, axis=-1)  # each (batch, 1, channels)
-        mean = mx.mean(x, axis=-1, keepdims=True)
-        var = mx.var(x, axis=-1, keepdims=True)
-        x = (x - mean) / mx.sqrt(var + self.eps)
+        x = normalize(x, axis=-1, eps=self.eps)
         x = (1 + gamma) * x + beta
         return x  # NLC
 
@@ -494,10 +506,7 @@ class ProsodyPredictor(nn.Module):
         self.lstm = BiLSTM(d_hid + style_dim, d_hid // 2)
         self.duration_proj = LinearNorm(d_hid, max_dur)
         self.shared = BiLSTM(d_hid + style_dim, d_hid // 2)
-        self.F0 = [
-            None,  # placeholder indices; filled below
-        ]
-        # Import here to avoid circular import (istftnet imports modules)
+        # Imported here to avoid a circular import (istftnet imports modules)
         from .istftnet import AdainResBlk1d
         self.F0 = [
             AdainResBlk1d(d_hid, d_hid, style_dim, dropout_p=dropout),
@@ -514,20 +523,12 @@ class ProsodyPredictor(nn.Module):
 
     def __call__(self, texts: mx.array, style: mx.array, text_lengths: mx.array,
                  alignment: mx.array, mask: mx.array):
-        d = self.text_encoder(texts, style, text_lengths, mask)  # (B, T, d_hid+style)
-        # d for lstm input: concat style
-        B, T, _ = d.shape
-        mx.broadcast_to(style[:, None, :], (B, T, style.shape[-1]))
-        # d already has style concat from DurationEncoder last step — actually no,
-        # DurationEncoder returns (B, T, d_hid+sty_dim) from the last LSTM's output
-        # which is just d_hid. Let me re-check: the last block in DurationEncoder
-        # is AdaLayerNorm, after which we re-concat style. So d is (B, T, d_hid+sty_dim).
-        x, _ = self.lstm(d), None  # BiLSTM expects (B, T, input_size)
-        x = self.lstm(d)           # (B, T, d_hid)
-        duration = self.duration_proj(x)  # (B, T, 50)
-        en = d.transpose(0, 2, 1) @ alignment  # (B, d_hid+sty_dim or d_hid, T') — hmm
-        # Actually we need just the first d_hid dims; see forward in model.py
-        return duration.squeeze(-1), en
+        """Return duration logits (B, T, max_dur) and aligned features (B, d_hid+sty_dim, T')."""
+        d = self.text_encoder(texts, style, text_lengths, mask)  # (B, T, d_hid+sty_dim)
+        x = self.lstm(d)  # (B, T, d_hid)
+        duration = self.duration_proj(x)  # (B, T, max_dur)
+        en = d.transpose(0, 2, 1) @ alignment  # (B, d_hid+sty_dim, T')
+        return duration, en
 
     def F0Ntrain(self, x: mx.array, s: mx.array):
         # x: (B, d_hid+sty_dim, T') or (B, d_hid, T') — NCL
