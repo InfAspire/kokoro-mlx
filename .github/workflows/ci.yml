@@ -3,29 +3,54 @@ name: CI
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - "**.md"
+      - "LICENSE"
+      - ".github/ISSUE_TEMPLATE/**"
+      - ".github/dependabot.yml"
   pull_request:
     branches: [main]
+    paths-ignore:
+      - "**.md"
+      - "LICENSE"
+      - ".github/ISSUE_TEMPLATE/**"
+      - ".github/dependabot.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   python-checks:
     name: Python checks
+    # MLX needs Apple Silicon with Metal; the numerics under test are the macOS arm64 ones.
     runs-on: macos-15
+    timeout-minutes: 20
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
 
       - name: Install dependencies
-        run: pip install -e ".[dev]" ruff
+        run: python -m pip install --disable-pip-version-check -e ".[dev]"
+
+      - name: Lint with ruff
+        run: ruff check src/ tests/
 
       - name: Import smoke test
         run: |
           python -c "
-          from kokoro_mlx import KokoroTTS, TTSResult
+          from kokoro_mlx import KokoroTTS, TTSResult, __version__
           from kokoro_mlx.model import KokoroModel
           from kokoro_mlx.modules import TextEncoder, ProsodyPredictor
           from kokoro_mlx.istftnet import Generator, Decoder
@@ -33,11 +58,8 @@ jobs:
           from kokoro_mlx.phonemize import Phonemizer
           from kokoro_mlx.voices import VoiceManager
           from kokoro_mlx.config import KokoroConfig, ISTFTNetConfig, PLBertConfig
-          print('All imports OK')
+          print('All imports OK', __version__)
           "
 
       - name: Unit tests
         run: python -m pytest tests/ -v -m "not slow"
-
-      - name: Lint with ruff
-        run: ruff check src/

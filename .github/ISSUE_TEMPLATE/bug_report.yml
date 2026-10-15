@@ -44,7 +44,7 @@ body:
     attributes:
       label: Package version
       description: Output of `python -c "import kokoro_mlx; print(kokoro_mlx.__version__)"`.
-      placeholder: "0.1.0"
+      placeholder: "0.1.3"
     validations:
       required: true
 
