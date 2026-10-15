@@ -24,6 +24,12 @@ Tests that load the full model weights are marked `slow`. To skip them:
 python -m pytest tests/ -v -m "not slow"
 ```
 
+Lint (CI runs the same check):
+
+```bash
+ruff check src/ tests/
+```
+
 **Python 3.10 to 3.12 only.** The misaki G2P library does not support Python 3.13+.
 
 ## Architecture
@@ -56,7 +62,7 @@ The `slow` marker covers tests that load the full 82M model. Fast tests cover un
 ## PR Checklist
 
 - One feature or fix per PR. Keep scope tight.
-- All tests pass before opening.
+- All tests and `ruff check src/ tests/` pass before opening.
 - Update `README.md` if user-facing behavior changes.
 - Match existing code style. No reformatting unrelated files.
 - No PyTorch or transformers dependencies.

@@ -1,5 +1,1 @@
 blank_issues_enabled: false
-contact_links:
-  - name: Discussions
-    url: https://github.com/gabrimatic/kokoro-mlx/discussions
-    about: "Questions, ideas, or general conversation about kokoro-mlx."
